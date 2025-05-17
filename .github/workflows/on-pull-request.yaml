@@ -52,12 +52,12 @@ jobs:
           # Get parameters
           echo "Get *.tfvars from SSM parameter"
           aws ssm get-parameter \
-            --name "/reinforce25/grc352/terraform/tfvars" \
+            --name "/dcsummit25/cop401/terraform/tfvars" \
             --query "Parameter.Value" \
             --output "text" \
             --region $AWS_REGION >> terraform.tfvars
           # Run Terraform
-          terraform init -backend-config="bucket=$ACCOUNT_ID-grc352-tf-state" -backend-config="key=state/$ACCOUNT_ID/$REPO_OWNER/$REPO_NAME/terraform.tfstate" -backend-config="region=$AWS_REGION" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+          terraform init -backend-config="bucket=$ACCOUNT_ID-tf-state" -backend-config="key=state/$ACCOUNT_ID/$REPO_OWNER/$REPO_NAME/terraform.tfstate" -backend-config="region=$AWS_REGION" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
           terraform plan -var-file="terraform.tfvars" -no-color -out=tfplan
           terraform show -json tfplan > tfplan.json
 
