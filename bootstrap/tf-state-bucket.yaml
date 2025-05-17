@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create an S3 bucket for Terraform state file'
+
+Resources:
+  TerraformState:
+    Type: AWS::S3::Bucket
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Access logs aren't needed for this bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub '${AWS::AccountId}-tf-state'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+Outputs:
+  TerraformStateBucketName:
+    Description: 'Name of the created Terraform State Bucket'
+    Value: !Ref TerraformState

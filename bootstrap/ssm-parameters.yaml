@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation template to create an SSM parameter'
+
+Resources:
+  TerraformTfvarsParameter:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: '/dcsummit25/cop401/terraform/tfvars'
+      Type: 'String'
+      Value: 'scan_on_push=false'
+      Description: 'Parameter for terraform configuration'
+      Tier: 'Standard'
+      Tags:
+        Workshop: 'dcsummit25'
+        Purpose: 'cop401'
+
+  CloudFormationJsonParameter:
+    Type: 'AWS::SSM::Parameter'
+    Properties:
+      Name: '/dcsummit25/cop401/cloudformation/json'
+      Type: 'String'
+      Value: '[{"ParameterKey": "ScanOnPush","ParameterValue": "true"}]'
+      Description: 'Parameters for CloudFormation'
+      Tier: 'Standard'
+      Tags:
+        Workshop: 'dcsummit25'
+        Purpose: 'cop401'
+
+Outputs:
+  TerraformParameterName:
+    Description: 'Name of the created Terraform SSM Parameter'
+    Value: !Ref TerraformTfvarsParameter
+  CloudFormationParameterName:
+    Description: 'Name of the created CloudFormation SSM Parameter'
+    Value: !Ref CloudFormationJsonParameter

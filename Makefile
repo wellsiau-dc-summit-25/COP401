@@ -1,4 +1,4 @@
-.PHONY: install install-terraform install-tflint install-cfn-lint install-cfn-guard install-checkov install-pre-commit all
+.PHONY: install install-terraform install-tflint install-cfn-lint install-cfn-guard install-checkov install-pre-commit all bootstrap
 
 # Default target
 all: install
@@ -80,3 +80,27 @@ install-pre-commit:
 setup-hooks:
 	@echo "##### Setting up pre-commit hooks..."
 	@pre-commit install
+
+# Bootstrap
+bootstrap: deploy-tf-state-bucket deploy-cfn-guard-bucket deploy-ssm-parameters deploy-github-oidc
+
+deploy-tf-state-bucket:
+	@echo "##### Deploying TF State Bucket ..."
+	@aws cloudformation deploy --template-file bootstrap/tf-state-bucket.yaml --stack-name tf-state-bucket
+
+deploy-cfn-guard-bucket:
+	@echo "##### Deploying CFN Guard Bucket ..."
+	@aws cloudformation deploy --template-file bootstrap/cfn-guard-bucket.yaml --stack-name cfn-guard-bucket
+
+deploy-ssm-parameters:
+	@echo "##### Deploying SSM Parameters ..."
+	@aws cloudformation deploy --template-file bootstrap/ssm-parameters.yaml --stack-name ssm-parameters
+
+deploy-github-oidc:
+	@echo "##### Deploying GitHub OIDC ..."
+	@REMOTE_URL=$$(git remote get-url origin) && \
+	GITHUB_ORG=$$(echo $$REMOTE_URL | sed -E 's|git@github.com:([^/]+)/(.+)\.git|\1|') && \
+	GITHUB_REPO=$$(echo $$REMOTE_URL | sed -E 's|git@github.com:([^/]+)/(.+)\.git|\2|') && \
+	echo "Organization: $$GITHUB_ORG" && \
+	echo "Repository: $$GITHUB_REPO" && \
+	aws cloudformation deploy --template-file bootstrap/github-oidc.yaml --stack-name github-oidc-role --parameter-overrides GitHubOrg=$$GITHUB_ORG RepositoryName=$$GITHUB_REPO --capabilities CAPABILITY_NAMED_IAM
