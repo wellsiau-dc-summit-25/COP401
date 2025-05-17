@@ -2,6 +2,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
   ScanOnPush:
+    Type: String
     Default: "true"
 Resources:
   MyRepository:
