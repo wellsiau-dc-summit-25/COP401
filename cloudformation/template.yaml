@@ -13,4 +13,41 @@ Resources:
       ImageScanningConfiguration:
         ScanOnPush:
           Ref: ScanOnPush
+      EncryptionConfiguration:
+        EncryptionType: KMS
+        KmsKey: !GetAtt MyKey.Arn
+
+  MyKey:
+    Type: 'AWS::KMS::Key'
+    Properties:
+      Description: "KMS key for ECR repository encryption"
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-default-1
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow ECR to use the key
+            Effect: Allow
+            Principal:
+              Service: 'ecr.amazonaws.com'
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:DescribeKey'
+              - 'kms:Encrypt'
+              - 'kms:GenerateDataKey'
+              - 'kms:ReEncrypt*'
+            Resource: '*'
+
+  MyKeyAlias:
+    Type: 'AWS::KMS::Alias'
+    Properties:
+      AliasName: 'alias/test-repo-cfn'
+      TargetKeyId: !Ref MyKey
 #####################################################
