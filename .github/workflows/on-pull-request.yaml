@@ -27,7 +27,67 @@ jobs:
         uses: actions/checkout@v4
 
       ###### PLACEHOLDER FOR TERRAFORM PLAN   ######
+      - name: Configure AWS Credentials
+        id: configure-aws-credentials
+        uses: aws-actions/configure-aws-credentials@v4.1.0
+        with:
+          audience: sts.amazonaws.com
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/${{ env.AWS_ROLE_TO_ASSUME }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.11.2"
+
+      - name: Generate Terraform Plan
+        id: plan
+        working-directory: ./terraform
+        run: |
+          # Fetch AWS Account ID
+          ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
+          # Configure Terraform backend
+          REPO_OWNER=${GITHUB_REPOSITORY_OWNER}
+          REPO_NAME=${GITHUB_REPOSITORY}
+          # Get parameters
+          echo "Get *.tfvars from SSM parameter"
+          aws ssm get-parameter \
+            --name "/reinforce25/grc352/terraform/tfvars" \
+            --query "Parameter.Value" \
+            --output "text" \
+            --region $AWS_REGION >> terraform.tfvars
+          # Run Terraform
+          terraform init -backend-config="bucket=$ACCOUNT_ID-grc352-tf-state" -backend-config="key=state/$ACCOUNT_ID/$REPO_OWNER/$REPO_NAME/terraform.tfstate" -backend-config="region=$AWS_REGION" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+          terraform plan -var-file="terraform.tfvars" -no-color -out=tfplan
+          terraform show -json tfplan > tfplan.json
+
+      - name: Run Checkov (TF Plan)
+        id: checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          config_file: .config/checkov/.checkov.yaml
+          file: ./terraform/tfplan.json
+          repo_root_for_plan_enrichment: ./terraform
+          output_format: cli
+          output_file_path: console
+
+      - name: Checkov Report
+        id: checkov-report
+        working-directory: ./terraform
+        if: always()
+        env:
+          CHECKOV_STATUS: "${{ steps.checkov.outcome }}"
+        run: |
+          echo "Checkov scan status: $CHECKOV_STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "$CHECKOV_RESULTS" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: |
+            ./terraform/tfplan
+            ./terraform/tfplan.json
       ##############################################
 
   cfn-analysis:
@@ -43,10 +103,79 @@ jobs:
         uses: actions/checkout@v4
 
       ###### PLACEHOLDER FOR CFN GUARD ######
+      - name: Run CFN Guard
+        id: cfn-guard
+        uses: aws-cloudformation/cloudformation-guard@action-v0.0.5
+        with:
+          rules: '.config/cfn-guard'
+          data: 'cloudformation'
+          checkout: false
+          create-review: true
+          debug: true
 
+      - name: CFN Report
+        id: cfn-guard-report
+        if: always()
+        env:
+          CFN_GUARD_STATUS: "${{ steps.cfn-guard.outcome }}"
+        run: |
+          echo "Cfn-Guard scan status: $CFN_GUARD_STATUS" >> $GITHUB_STEP_SUMMARY
       #######################################
 
 
 ###### PLACEHOLDER FOR SUMMARY #######
+  summary-report:
+    name: 'Summary Report'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      pull-requests: write # for git bot comment
+    needs: [tf-plan-analysis, cfn-analysis]
+    if: always()
+    steps:
+      - name: Create Summary Table
+        uses: actions/github-script@v6
+        if: always()
+        env:
+          CHECKOV_STATUS: ${{ needs.tf-plan-analysis.outputs.checkov_status }}
+          PLAN_STATUS: ${{ needs.tf-plan-analysis.outputs.plan_status }}
+          CFN_GUARD_STATUS: ${{ needs.cfn-analysis.outputs.cfn_guard_status }}
+        with:
+          script: |
+            // Create a status emoji based on the outcome
+            const getStatusEmoji = (status) => {
+              if (!status) return '❓';
+              switch(status.toLowerCase()) {
+                case 'success': return '✅';
+                case 'failure': return '❌';
+                case 'cancelled': return '⚠️';
+                case 'skipped': return '⏭️';
+                default: return '❓';
+              }
+            };
 
+            // Create a summary table
+            const summary = `## Pull Request Workflow Summary
+
+            | Check | Status | Details |
+            | ----- | ------ | ------- |
+            | Terraform Plan | ${getStatusEmoji(process.env.PLAN_STATUS)} | ${process.env.PLAN_STATUS || 'N/A'} |
+            | Checkov Security Scan | ${getStatusEmoji(process.env.CHECKOV_STATUS)} | ${process.env.CHECKOV_STATUS || 'N/A'} |
+            | Cfn-Guard Security Scan | ${getStatusEmoji(process.env.CFN_GUARD_STATUS)} | ${process.env.CFN_GUARD_STATUS || 'N/A'} |
+
+            *Generated at: ${new Date().toISOString()}*
+            `;
+
+            // Write to the job summary
+            await core.summary
+              .addRaw(summary)
+              .write();
+
+            // Also post as a comment
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
 ######################################
