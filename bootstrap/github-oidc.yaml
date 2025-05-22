@@ -18,7 +18,7 @@ Parameters:
     Type: String
 
 Conditions:
-  CreateOIDCProvider: !Equals 
+  CreateOIDCProvider: !Equals
     - !Ref OIDCProviderArn
     - ""
 
@@ -32,7 +32,7 @@ Resources:
           - Effect: Allow
             Action: sts:AssumeRoleWithWebIdentity
             Principal:
-              Federated: !If 
+              Federated: !If
                 - CreateOIDCProvider
                 - !Ref GithubOidc
                 - !Ref OIDCProviderArn
@@ -70,11 +70,11 @@ Resources:
     Condition: CreateOIDCProvider
     Properties:
       Url: https://token.actions.githubusercontent.com
-      ClientIdList: 
+      ClientIdList:
         - sts.amazonaws.com
       ThumbprintList:
         - ffffffffffffffffffffffffffffffffffffffff
 
 Outputs:
   Role:
-    Value: !GetAtt Role.Arn 
+    Value: !GetAtt Role.Arn
