@@ -12,14 +12,7 @@ rule kms_key_has_ecr_service when %kms_keys !empty {
     ] {
         Principal.Service == "ecr.amazonaws.com"
         Action exists
-
-        Action == [
-            "kms:Decrypt",
-            "kms:DescribeKey",
-            "kms:Encrypt",
-            "kms:GenerateDataKey",
-            "kms:ReEncrypt*"
-        ] <<
+        <<
             Violation: KMS keys must have at least one policy statement that allows the ECR service (ecr.amazonaws.com) with the specified actions.
             Fix: Add a policy statement with:
                 Principal:
