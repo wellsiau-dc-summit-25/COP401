@@ -1,0 +1,26 @@
+# Rule to check if ECR repository has required tags
+# This rule ensures that tags key Environment present with specfic values
+
+# Find all ECR repositories
+let aws_ecr_repository_resources = Resources.*[ Type == 'AWS::ECR::Repository' ]
+
+# Check if ECR repository has tags and at least one tag with key 'Environment' and value 'Test', 'Develop' or 'Prod'
+rule ECR_REQUIRED_ENV_TAG when %aws_ecr_repository_resources !empty {
+    %aws_ecr_repository_resources.Properties.Tags !empty
+    <<
+        Violation: AWS::ECR::Repository resource must include Tags
+        Fix: Add tags to the AWS::ECR::Repository
+    >>
+
+    some %aws_ecr_repository_resources.Properties.Tags[*] {
+        Key == "Environment"
+        Value in ["Test", "Develop", "Prod"]
+        <<
+            Violation: Environment tag must be included, accepted values : ["Test", "Develop", "Prod"]
+            Fix: Add environment tags for example:
+              Tags:
+                - Key: "Environment"
+                  Value: Test
+        >>
+    }
+}
