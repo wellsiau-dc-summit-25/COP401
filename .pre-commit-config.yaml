@@ -26,6 +26,7 @@ repos:
   hooks:
     - id: checkov
       entry: checkov -d . --config-file .config/checkov/.checkov.yaml --framework terraform,cloudformation
+      files: \.(yaml|yml|json|tf|hcl)$
     - id: checkov_secrets
 
 # CFN Guard checks
