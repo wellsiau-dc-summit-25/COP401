@@ -118,12 +118,43 @@ jobs:
           echo "Checkov scan status: $CHECKOV_STATUS" >> $GITHUB_STEP_SUMMARY
           echo "$CHECKOV_RESULTS" >> $GITHUB_STEP_SUMMARY
 
+  cfn-guard:
+    name: 'CloudFormation Guard'
+    runs-on: ubuntu-latest
+    needs: [cfn-static-checks]
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      pull-requests: write # for git bot comment access
+    outputs:
+      cfn_guard_status: ${{ steps.cfn-guard.outcome }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run CFN Guard
+        id: cfn-guard
+        uses: aws-cloudformation/cloudformation-guard@action-v0.0.5
+        with:
+          rules: '.config/cfn-guard'
+          data: 'cloudformation'
+          checkout: false
+          create-review: true
+          debug: true
+
+      - name: CFN Report
+        id: cfn-guard-report
+        if: always()
+        env:
+          CFN_GUARD_STATUS: "${{ steps.cfn-guard.outcome }}"
+        run: |
+          echo "Cfn-Guard scan status: $CFN_GUARD_STATUS" >> $GITHUB_STEP_SUMMARY
+
   summary-report:
     name: 'Summary Report'
     runs-on: ubuntu-latest
     permissions:
       contents: read # for actions/checkout to fetch code
-    needs: [tf-format-and-lint, tf-static-checks, cfn-format-and-lint, cfn-static-checks]
+    needs: [tf-format-and-lint, tf-static-checks, cfn-format-and-lint, cfn-static-checks, cfn-guard]
     if: always()
     steps:
       - name: Create Summary Table
@@ -134,6 +165,7 @@ jobs:
           TF_STATIC_STATUS: ${{ needs.tf-static-checks.outputs.checkov_status }}
           CFN_LINT_STATUS: ${{ needs.cfn-format-and-lint.outputs.cfnlint_status }}
           CFN_STATIC_STATUS: ${{ needs.cfn-static-checks.outputs.checkov_status }}
+          CFN_GUARD_STATUS: ${{ needs.cfn-guard.outputs.cfn_guard_status }}
         with:
           script: |
             // Create a status emoji based on the outcome
@@ -157,6 +189,7 @@ jobs:
             | TF Static Analysis | ${getStatusEmoji(process.env.TF_STATIC_STATUS)} | ${process.env.TF_STATIC_STATUS || 'N/A'} |
             | CFN Lint | ${getStatusEmoji(process.env.CFN_LINT_STATUS)} | ${process.env.CFN_LINT_STATUS || 'N/A'} |
             | CFN Static Analysis | ${getStatusEmoji(process.env.CFN_STATIC_STATUS)} | ${process.env.CFN_STATIC_STATUS || 'N/A'} |
+            | CFN Guard | ${getStatusEmoji(process.env.CFN_GUARD_STATUS)} | ${process.env.CFN_GUARD_STATUS || 'N/A'} |
 
             *Generated at: ${new Date().toISOString()}*
             `;
