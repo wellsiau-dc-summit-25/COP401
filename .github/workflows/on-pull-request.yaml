@@ -6,9 +6,9 @@ on:
 
 env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-west-2' }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID || '884290601386' }}
+  AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME || 'github-actions-role' }}
 
 jobs:
   tf-plan-analysis:
