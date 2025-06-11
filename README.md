@@ -4,11 +4,6 @@ This repository provides a standardized template for Infrastructure as Code (IaC
 
 The repository implements industry best practices for infrastructure management including automated linting, security scanning with Checkov, and pre-commit hooks for code quality. It supports both AWS CloudFormation and Terraform deployments with proper version control integration and automated workflow checks through GitHub Actions.
 
-### Full solution
-
-* The `main` branch is intended as part of walkthrough in the workshop.
-* The `solution` branch contains the full solution for the workshop.
-
 ## Repository Structure
 
 ```
@@ -38,9 +33,9 @@ The repository implements industry best practices for infrastructure management 
 
 ### Installation
 
-1. Fork this repository into your own GitHub.
+1. Create new repository from this template on GitHub
 
-2. Clone the repository:
+2. Clone the new repository:
 
 ```bash
 git clone https://github.com/your-org/your-repo.git
